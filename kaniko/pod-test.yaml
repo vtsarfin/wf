@@ -25,4 +25,4 @@ spec:
             path: config.json
     - name: dockerfile-storage
       persistentVolumeClaim:
-        claimName: build-volume-claim
+        claimName: build-claim

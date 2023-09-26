@@ -16,6 +16,17 @@ spec:
           path: config.json
 
   templates:
+  - name: crane
+    container:
+      image: gcr.io/go-containerregistry/crane
+      imagePullPolicy: IfNotPresent
+      args: ["push", "/workspace/ktest.tar", "vtsarfin/ktest:tag1"]
+      volumeMounts:
+        - name: kaniko-secret
+          mountPath: /home/nonroot/.docker
+        - name: build
+          mountPath: /workspace
+
   - name: kaniko
     container:
       image: gcr.io/kaniko-project/executor
@@ -75,7 +86,7 @@ spec:
               parameters: [{name: message, value: KANIKO}]
       - name: crane
         dependencies: [linter,kaniko]
-        template: badass
+        template: crane
         arguments:
               parameters: [{name: message, value: crane}, {name: exit-code, value: 0}]
 
