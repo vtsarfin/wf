@@ -1,0 +1,92 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: sillypy-dag-
+spec:
+  entrypoint: sillypy-ci
+  volumes:
+  - name: build
+    persistentVolumeClaim:
+      claimName: build-volume-claim
+  - name: kaniko-secret
+    secret:
+      secretName: regcred
+      items:
+        - key: .dockerconfigjson
+          path: config.json
+
+  templates:
+  - name: crane
+    container:
+      image: gcr.io/go-containerregistry/crane
+      imagePullPolicy: IfNotPresent
+      args: ["push", "/workspace/ktest.tar", "vtsarfin/ktest:tag1"]
+      volumeMounts:
+        - name: kaniko-secret
+          mountPath: /home/nonroot/.docker
+        - name: build
+          mountPath: /workspace
+
+  - name: kaniko
+    container:
+      image: gcr.io/kaniko-project/executor
+      imagePullPolicy: IfNotPresent
+      args: ["--dockerfile=/workspace/dockerfile", "--no-push", "--tar-path=/workspace/ktest.tar"]
+      volumeMounts:
+        - name: kaniko-secret
+          mountPath: /kaniko/.docker
+        - name: build
+          mountPath: /workspace
+            
+  - name: black
+    inputs:
+      parameters:
+        - name: appName
+    container:
+      image: pyfound/black
+      imagePullPolicy: IfNotPresent
+      command: ["black", "--check", "-v", "/src"]
+      volumeMounts:
+        - name: build
+          mountPath: /src
+
+  - name: echo
+    inputs:
+      parameters:
+      - name: message
+    container:
+      image: alpine:latest
+      command: [echo, "{{inputs.parameters.message}}"]
+  - name: badass
+    inputs:
+      parameters:
+        - name: message
+        - name: exit-code
+          value: 0
+    container:
+      imagePullPolicy: IfNotPresent
+      image: alpine:latest
+      command: [sh, -c]
+      args: ["echo {{inputs.parameters.message}} | tee >>/build/test.txt; exit {{inputs.parameters.exit-code}}"]
+      volumeMounts:
+      - name: build
+        mountPath: /build
+#---------------------------------------------------
+  - name: sillypy-ci
+    dag:
+      tasks:
+      - name: linter
+        template: black
+        arguments:
+              parameters: [{name: message, value: "Linter"},{name: appName, value: sillypy}]
+      - name: kaniko
+        dependencies: [linter]
+        template: kaniko
+        arguments:
+              parameters: [{name: message, value: KANIKO}]
+      - name: crane
+        dependencies: [linter,kaniko]
+        template: crane
+        arguments:
+              parameters: [{name: message, value: crane}, {name: exit-code, value: 0}]
+

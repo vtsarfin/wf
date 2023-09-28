@@ -1,0 +1,67 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: sillypy-dag-template
+spec:
+  arguments:
+    parameters:
+      - name: image
+        value: vtsarfin/ktest
+      - name: tag
+        value: 0.1
+      - name: workload
+        value: sillypy
+
+  entrypoint: sillypy-ci
+  volumes:
+  - name: build
+    persistentVolumeClaim:
+      claimName: build-volume-claim
+  - name: kaniko-secret
+    secret:
+      secretName: regcred
+      items:
+        - key: .dockerconfigjson
+          path: config.json
+
+  templates:
+ 
+  - name: echo
+    inputs:
+      parameters:
+      - name: message
+    container:
+      image: alpine:latest
+      command: [echo, "{{inputs.parameters.message}}"]
+  - name: badass
+    inputs:
+      parameters:
+        - name: message
+        - name: exit-code
+          value: 0
+    container:
+      imagePullPolicy: IfNotPresent
+      image: alpine:latest
+      command: [sh, -c]
+      args: ["echo {{inputs.parameters.message}} | tee >>/build/test.txt; exit {{inputs.parameters.exit-code}}"]
+      volumeMounts:
+      - name: build
+        mountPath: /build
+#---------------------------------------------------
+  - name: sillypy-ci
+    dag:
+      tasks:
+      - name: linter
+        templateRef: 
+          name: black-wft
+          template: black
+      - name: kaniko
+        dependencies: [linter]
+        templateRef: 
+          name: kaniko-wft
+          template: kaniko
+      - name: crane
+        dependencies: [linter,kaniko]
+        templateRef: 
+            name: crane-wft
+            template: crane
