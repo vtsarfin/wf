@@ -25,6 +25,29 @@ spec:
           path: config.json
 
   templates:
+ 
+  - name: echo
+    inputs:
+      parameters:
+      - name: message
+    container:
+      image: alpine:latest
+      command: [echo, "{{inputs.parameters.message}}"]
+  - name: badass
+    inputs:
+      parameters:
+        - name: message
+        - name: exit-code
+          value: 0
+    container:
+      imagePullPolicy: IfNotPresent
+      image: alpine:latest
+      command: [sh, -c]
+      args: ["echo {{inputs.parameters.message}} | tee >>/build/test.txt; exit {{inputs.parameters.exit-code}}"]
+      volumeMounts:
+      - name: build
+        mountPath: /build
+#---------------------------------------------------
   - name: sillypy-ci
     dag:
       tasks:
