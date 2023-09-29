@@ -32,6 +32,17 @@ spec:
         volumeMounts:
           - name: build
             mountPath: /workdir
+    sidecars:
+        - name: dind
+          image: docker:23.0.1-dind
+          command:
+            - dockerd-entrypoint.sh
+          #          env:
+            #  - name: DOCKER_TLS_CERTDIR
+#  value: ""
+          securityContext:
+            privileged: true
+          mirrorVolumeMounts: true        
   - name: crane
     container:
       image: gcr.io/go-containerregistry/crane

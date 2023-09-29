@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: trivy-image-scan-wft
+spec:
+  templates:
+  - name: trivy-image-scan
+    container:
+        image: aquasec/trivy
+        args:
+          - image
+          - --input=/workdir/{{workflow.parameters.workload}}.tar
+        env:
+          - name: DOCKER_HOST
+            value: tcp://127.0.0.1:2375
+        volumeMounts:
+          - name: build
+            mountPath: /workdir
+    sidecars:
+        - name: dind
+          image: docker:23.0.1-dind
+          command:
+            - dockerd-entrypoint.sh
+          #          env:
+            #  - name: DOCKER_TLS_CERTDIR
+#  value: ""
+          securityContext:
+            privileged: true
+          mirrorVolumeMounts: true        
+

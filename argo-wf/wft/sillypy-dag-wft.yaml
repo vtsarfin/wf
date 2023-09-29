@@ -60,8 +60,13 @@ spec:
         templateRef: 
           name: kaniko-wft
           template: kaniko
+      - name: trivy-image-scan
+        dependencies: [kaniko]
+        templateRef:
+          name: trivy-image-scan-wft
+          template: trivy-image-scan
       - name: crane
-        dependencies: [linter,kaniko]
+        dependencies: [linter,kaniko,trivy-image-scan]
         templateRef: 
             name: crane-wft
             template: crane
