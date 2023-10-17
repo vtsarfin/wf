@@ -11,8 +11,12 @@ spec:
         value: "0.2"
       - name: workload
         value: sillypy
-
-  entrypoint: sillypy-ci
+      - name: revision
+        value: "v1.0"
+      - name: repo
+        value: git@github.com:CGDevX-Demo/workload-sillypy.git
+  #  entrypoint: sillypy-ci
+  entrypoint: git-clone
   volumes:
   - name: build
     persistentVolumeClaim:
@@ -47,3 +51,33 @@ spec:
         templateRef: 
             name: crane-wft
             template: crane
+  - name: git-clone
+    inputs:
+      artifacts:
+      - name: sillypy-src
+        path: /src
+        git:
+          repo: git@github.com:CGDevX-Demo/workload-sillypy.git
+          revision: "v1.0"
+          sshPrivateKeySecret:
+             name: id-rsa-github
+             key: id_rsa_for_github
+          depth: 1
+    script:
+        image: python:latest
+        env:
+          - name: WORKLOAD
+            value: "{{workflow.parameters.workload}}"
+        command: [sh]
+        source: |
+          git status && ls -lra && cat dockerfile
+          mkdir /build/${WORKLOAD}
+          cp -r * /build/${WORKLOAD}
+          cd /build/${WORKLOAD}
+          pwd
+          echo "I've been here" > test.txt
+        volumeMounts:
+          - mountPath: "/build"
+            name: build
+        workingDir: /src
+
